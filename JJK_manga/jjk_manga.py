@@ -7,26 +7,35 @@ from dotenv import load_dotenv
 import os
 
 URL = "https://ww2.jujustukaisen.com/"
-TIME_BETWEEN_CHECKS = timedelta(hours=1)
+TIME_BETWEEN_CHECKS = timedelta(minutes=30)
+SECONDARY_TIME = timedelta(minutes=5)
 
 load_dotenv()
 TOKEN = os.getenv("token")
 CHAT_ID = int(os.getenv("chat-id"))
 
 bot = TeleBot(TOKEN)
-last_check = datetime.now()
 
 def get_latest():
-    return BeautifulSoup(requests.get(URL).text, "html.parser").find("li", {"id": "ceo_latest_comics_widget-3"}).find("ul").find("li").find("a")["href"]
+    site = requests.get(URL)
+    print(f"{datetime.now().strftime("%H:%M").rjust(5)}: Request sent")
+    return BeautifulSoup(site.text, "html.parser").find("li", {"id": "ceo_latest_comics_widget-3"}).find("ul").find("li").find("a")["href"]
 
 def send(text):
     bot.send_message(CHAT_ID, text)
 
-latest = get_latest()
+def wait4check():
+    while last_check + TIME_BETWEEN_CHECKS > datetime.now():
+        sleep(SECONDARY_TIME.total_seconds())
+
+latest = new = get_latest()
+last_check = datetime.now()
+wait4check()
 while True:
     new = get_latest()
+    last_check = datetime.now()
     if latest != new:
+        print(f"New chapter detected! ({new})")
         latest = new
         send(latest)
-    while last_check + TIME_BETWEEN_CHECKS > datetime.now():
-        sleep(10*60)
+    wait4check()
