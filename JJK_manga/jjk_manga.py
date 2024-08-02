@@ -30,12 +30,15 @@ def wait4check():
 
 latest = new = get_latest()
 last_check = datetime.now()
-wait4check()
 while True:
-    new = get_latest()
+    wait4check()
+    try:
+        new = get_latest()
+    except ConnectionError:
+        print("Request failed")
+        continue
     last_check = datetime.now()
     if latest != new:
         print(f"New chapter detected! ({new})")
         latest = new
         send(latest)
-    wait4check()
