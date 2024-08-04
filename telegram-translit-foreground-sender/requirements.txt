@@ -1,0 +1,4 @@
+pynput
+clipboard
+telethon
+python-dotenv
