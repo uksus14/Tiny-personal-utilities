@@ -57,6 +57,8 @@ def new_month(sh1: gspread.worksheet.Worksheet, month: str):
 
 @bot.message_handler()
 def add(message):
+    if message.text == "/quit":
+        return quit()
     data: list[str] = message.text.split()
     if data[-1] not in currencies:
         data.append("p")
