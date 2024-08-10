@@ -55,15 +55,50 @@ def new_month(sh1: gspread.worksheet.Worksheet, month: str):
     sh.update(new_pound, sh.find("pound").address)
     return sh
 
-@bot.message_handler()
-def add(message):
-    if message.text == "/quit":
-        return quit()
-    data: list[str] = message.text.split()
+def parse_entry(text):
+    data: list[str] = text.split()
     if data[-1] not in currencies:
         data.append("p")
+    print(data)
     data = (" ".join(data[:-2]), *data[-2:])
-    if not re.match(r"[\d,\.]+", data[1]):
+    print(data)
+    if not re.match(r"^[\d,\.]+$", data[1]):
+        return None
+    return data
+
+@bot.message_handler(commands=["quit"])
+def stop(message):
+    bot.reply_to(message, "Stopping")
+    bot.stop_polling()
+    quit()
+
+@bot.message_handler(commands=["url"])
+def get_url(message):
+    bot.reply_to(message, f"https://docs.google.com/spreadsheets/d/{file.id}")
+
+def delete_last(sh: gspread.worksheet.Worksheet):
+    anchor = sh.find("anchor")
+    x, y = anchor.col, anchor.row
+    x+=2
+    while sh.cell(y, x).value: y+=1
+    return sh.cell(y-1, x)
+
+@bot.message_handler(commands=["delete"])
+def delete(message):
+    reply = message.reply_to_message
+    sh = file.sheet1
+    if reply is None:
+        entry = delete_last(sh)
+    else:
+        entry = sh.find(parse_entry(reply.text)[0])
+    sh.delete_rows(entry.row)
+    bot.reply_to(message, "Deleted")
+
+@bot.message_handler()
+def add(message):
+    data = parse_entry(message.text)
+    if data is None:
+        bot.reply_to(message, "Parsing error: Cost not recognised")
         return
     date = datetime.fromtimestamp(message.date)
     sh = file.sheet1
@@ -75,14 +110,17 @@ def add(message):
     pound2dollar = number(sh.cell(pound.row, pound.col-1).value)
     costs = currencies[data[2]](number(data[1]), pound2dollar, dollar2som)
     sync(sh, date, data[0], costs)
-    bot.send_message(message.chat.id, "Updated")
+    bot.reply_to(message, "Updated")
 
 def sync(sh: gspread.worksheet.Worksheet, date: datetime, desc: str, costs: list[int]):
     anchor = sh.find("anchor")
     x, y = anchor.col, anchor.row
     x+=1
     while sh.cell(y, x).value: y+=1
-    sh.update([["", f"{date.month}/{date.day}", desc, *costs]], f"A{y}:F{y}")
+    sh.copy_range(f"B{y}:F{y}", f"B{y+2}:F{y+2}")
+    sh.copy_range(f"B{y+1}:F{y+1}", f"B{y+3}:F{y+3}")
+    sh.delete_rows(y+1)
+    sh.update([[f"{date.month}/{date.day}", desc, *costs]], f"B{y}:F{y}", value_input_option='USER_ENTERED')
 
 
 bot.polling()
