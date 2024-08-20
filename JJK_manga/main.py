@@ -39,6 +39,7 @@ def wait4check():
         sleep(SECONDARY_TIME.total_seconds())
 
 latest = new = get_latest()
+print(f"{latest} is not out yet")
 last_check = datetime.now()
 while True:
     wait4check()
